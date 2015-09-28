@@ -1,0 +1,293 @@
+<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+
+class Administrador extends CI_Controller {
+
+	public function __construct()
+	{
+		parent::__construct();
+
+
+		$this->load->model('usuario_M');
+        $this->load->helper('form');
+        $this->load->library('form_validation');
+        $this->load->helper('url');
+        //$this->load->library('session');
+        $this->load->database();
+
+
+		$this->load->library('grocery_CRUD');
+        //$this->load->view('login');
+
+	}
+
+
+     public function _remap($method,$data_url)
+    {
+        if($this->session->userdata("user")=="admin")
+        {
+          // echo "admin";
+            $this->$method();
+        }else
+        {
+            redirect(base_url("home"));
+        }
+
+    }
+
+	public function inicio()
+	{
+		$this->load->view('principal');
+	}
+
+
+	public function _Servicios_view($output = null)
+	{
+		$this->load->view('principal.php',$output);
+	}
+
+
+	public function servicios()	
+	{
+			$crud = new grocery_CRUD();
+
+			$crud->set_table('tblusuario');
+			$crud->set_subject('cod_usuario');
+			//$crud->unset_columns('productDescription');
+			//$crud->callback_column('buyPrice',array($this,'valueToEuro'));
+
+			$output = $crud->render();
+
+			$this->_Servicios_view($output);
+
+	}
+
+
+	    public function _remap($method,$data_url)
+	{
+		
+		if($this->session->userdata("user")=="admin")
+		{
+			
+			if($method=="index")
+			{
+				redirect(base_url("admin/inicio"));
+			}
+			$this->$method();
+		}else
+		if($this->session->userdata("user")=="profesor")
+		{
+		
+			if($method=="index")
+			{
+				redirect(base_url("docente/inicio"));
+			}
+			$this->$method();
+
+		}else
+		{
+			if($method=="login2")
+			{
+				$this->login2();
+			}
+			$this->index();
+		}
+
+	}
+
+	public function validar()
+	{
+		if(!isset($_POST['user'])){	//	Si no recibimos ningún valor proveniente del formulario, significa que el usuario recién ingresa.	
+			$this->load->view('iniciarsession');		//	Por lo tanto le presentamos la pantalla del formulario de ingreso.
+		}
+		else{								//	Si el usuario ya pasó por la pantalla inicial y presionó el botón "Ingresar"
+			//$this->form_validation->set_rules('maillogin','e-mail','required|valid_email');		//	Configuramos las validaciones ayudandonos con la librería form_validation del Framework Codeigniter
+			$this->form_validation->set_rules('pass','password','required');
+			if(($this->form_validation->run()==FALSE)){				//	Verificamos si el usuario superó la validación
+				$this->load->view('iniciarsession');		
+			}
+			else{													//	Si ambos campos fueron correctamente rellanados por el usuario,
+				$this->load->model('usuario_M');
+				$ExisteUsuarioyPassoword = $this->usuario_M->ValidarUsuario($_POST['user'],$_POST['pass']);	//	comprobamos que el usuario exista en la base de datos y la password ingresada sea correcta
+				if($ExisteUsuarioyPassoword){	// La variable $ExisteUsuarioyPassoword recibe valor TRUE si el usuario existe y FALSE en caso que no. Este valor lo determina el modelo.
+					$res=$this->usuario_M->tipoUsuario($_POST['user'],$_POST['pass']);
+
+ 				if($res[0]->tipo =='Administrador')
+		     	{
+				      	
+				$this->session->set_userdata("user","admin");
+				redirect(base_url("home"));
+			   	}
+
+
+
+
+					$this->load->view('principal');
+					//	Si el usuario ingresó datos de acceso válido, imprimos un mensaje de validación exitosa en pantalla
+				}
+				else{	//	Si no logró validar
+					$data['error']="user o password incorrecta, por favor vuelva a intentar";
+					
+
+
+					$this->load->view('iniciarsession',$data);	//	Lo regresamos a la pantalla de login y pasamos como parámetro el mensaje de error a presentar en pantalla
+				}
+			}
+		}
+	}
+
+
+
+
+	
+
+
+
+
+	public function insertar()
+	{
+
+	$datos=array(
+		'cedula' => $_POST['cedula'],
+		'nombre1' => $_POST['nombre1'],
+		'nombre2' => $_POST['nombre2'],
+		'apellido1' => $_POST['apellido1'],
+		'apellido2' => $_POST['apellido2'],
+		'telefono' => $_POST['telefono'],
+		'direccion' => $_POST['direccion'],
+		'correo' => $_POST['correo'],
+		'estado'=> 'activo');
+
+	if (!isset($datos)) {
+			$this->load->view('login');
+	} else {
+				//echo var_dump($datos);
+			$res=$this->usuario_M->ValidarNuevoUsuario($_POST['usuario'],$_POST['correo'],$_POST['cedula']);
+			if ($res) {
+			
+			
+			
+			$respuesta=$this->usuario_M->insertardatos($datos);
+
+			if ($respuesta>0) {
+				$datosuser = array('cod_usuario'=> $respuesta,
+									'correo' => $_POST['correo'],
+									'usuario' => $_POST['usuario'],
+									'pass' => $_POST['pass']);
+			$respuesta=$this->usuario_M->insertaruser($datosuser);
+
+			}
+
+
+
+			$this->load->view('bien');	
+			if ($respuesta) {
+			echo "Validacion Ok<br><br><a href=''>Volver</a>";		# code...
+			} else {
+			echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+			}
+			} 
+			else
+			{
+			echo "ya existe";
+			}
+	}
+	
+
+	}
+	public function eliminar()
+	{
+		if(!isset($_POST['usuarioid']))
+		{		
+			$this->load->view('login');		
+		}
+		else
+		{
+			$datos = array(
+		    'cod_usuario' => $_POST['usuarioid'],
+			);
+
+			$respuesta=$this->usuario_M->delete($datos);
+
+			$this->load->view('bien');	
+			if ($respuesta) {
+			echo "Validacion Ok<br><br><a href=''>Volver</a>";		# code...
+			} else {
+			echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+			}			
+		}       
+		# code...
+	}
+	public function eliminarlogico()
+	{
+		if(!isset($_POST['usuarioid']))
+		{		
+			$this->load->view('login');		
+		}
+		else
+		{
+			$datos=array('estado'=> 'inactivo');
+			$where = array('cod_usuario' => $_POST['usuarioid']);
+			$respuesta=$this->usuario_M->updateDatos($datos,$where);
+			if ($respuesta) {
+				echo "Validacion Ok<br><br><a href=''>Volver</a>";		# code...
+				} else {
+				echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+				}	
+		}       
+		# code...
+	}
+
+	public function actualizarDatosU()
+	{
+		$datos=array('cedula' => $_POST['cedula'],
+						'nombre1' => $_POST['nombre1'],
+						'nombre2' => $_POST['nombre2'],
+						'apellido1' => $_POST['apellido1'],
+						'apellido2' => $_POST['apellido2'],
+						'telefono' => $_POST['telefono'],
+						'direccion' => $_POST['direccion'],
+						'correo' => $_POST['correo'],
+						'estado'=> $_POST['estado']);
+		$where = array('cod_usuario' => $_POST['cod_usuario']);
+		$respuesta=$this->usuario_M->updateDatos($datos,$where);
+		if ($respuesta) {
+			echo "Validacion Ok<br><br><a href=''>Volver</a>";		# code...
+			} else {
+			echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+			}
+	}
+
+	public function actualizarU()
+	{
+
+		$datosuser = array(		'usuario' => $_POST['user'],
+								'pass' => $_POST['pass'],
+								'cod_perfil' => $_POST['perfil']);
+
+		$respuesta=$this->usuario_M->updateLogin($datosuser,$_POST['cod_usuario']);
+
+		if ($respuesta) {
+			echo "Validacion Ok<br><br><a href=''>Volver</a>";		# code...
+			} else {
+			echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+			}
+	}
+	public function perfil()
+	{
+
+		$respuesta=$this->usuario_M->perfil();
+
+		if ($respuesta) {
+			echo form_dropdown('perfil', $respuesta, 'Tecnico');
+			} else {
+			echo "NO SE Encontraron<br><br><a href=''>Volver</a>";		# code...
+			}
+	}
+
+
+
+	
+}
+
+/* End of file  */
+/* Location: ./application/controllers/ */
